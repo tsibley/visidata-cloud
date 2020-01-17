@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "xterm": "^4.3.0"
+  }
+}
