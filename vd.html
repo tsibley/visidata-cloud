@@ -1,14 +1,45 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
   <title>VisiData Cloud</title>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="node_modules/xterm/css/xterm.css">
   <style>
+    body {
+      display: flex;
+      flex-direction: column;
+
+      margin: 0;
+      height: 100vh;
+    }
+    #terminal {
+      flex: auto;
+    }
   </style>
 </head>
 <body>
-  ...
+  <div id="terminal"></div>
+  <script src="node_modules/xterm/lib/xterm.js"></script>
+  <script src="node_modules/xterm-addon-attach/lib/xterm-addon-attach.js"></script>
+  <script src="node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
   <script>
-    
+    const params = (new URL(document.location)).searchParams;
+    const container = params.get("container");
+
+    if (!container)
+      throw Error("No container to attach to was specified in the query string.");
+
+    const term = new Terminal();
+
+    const socket = new WebSocket(`ws://localhost:8080/containers/${container}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`);
+    const attachAddon = new AttachAddon.AttachAddon(socket);
+    term.loadAddon(attachAddon);
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+
+    term.open(document.getElementById("terminal"));
+    fitAddon.fit();
   </script>
 </body>
 </html>

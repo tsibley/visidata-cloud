@@ -1,0 +1,11 @@
+terminal options
+    disable scrollback
+    test curses-based scrolling works
+    full-size working (sigwinch?)
+
+dom
+    prevent right click events from doing the default thing
+
+drag and drop
+    upload files to s3
+    trigger vd macro to load that file
