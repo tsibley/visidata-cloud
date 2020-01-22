@@ -1,11 +1,14 @@
 terminal options
     disable scrollback
     test curses-based scrolling works
-    full-size working (sigwinch?)
 
 dom
     prevent right click events from doing the default thing
 
+how to copy and paste?
+    sync clipboards...
+
 drag and drop
     upload files to s3
-    trigger vd macro to load that file
+    trigger vd macro (?) to load that file
+        Esc, Esc, space, open-file, type url

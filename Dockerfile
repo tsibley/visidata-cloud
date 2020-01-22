@@ -14,5 +14,10 @@ RUN pip install --no-cache-dir \
 
 RUN pip install --no-cache-dir https://github.com/saulpw/visidata/archive/$BRANCH.zip#egg=visidata
 
+RUN adduser -D visidata
+USER visidata
+WORKDIR /home/visidata
+
 ENV PAGER="less -SRFX"
+
 ENTRYPOINT ["vd"]

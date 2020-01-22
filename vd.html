@@ -3,7 +3,7 @@
 <head>
   <title>VisiData Cloud</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="node_modules/xterm/css/xterm.css">
+  <link rel="stylesheet" href="vendor/xterm.css">
   <style>
     body {
       display: flex;
@@ -19,27 +19,102 @@
 </head>
 <body>
   <div id="terminal"></div>
-  <script src="node_modules/xterm/lib/xterm.js"></script>
-  <script src="node_modules/xterm-addon-attach/lib/xterm-addon-attach.js"></script>
-  <script src="node_modules/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+  <script src="vendor/xterm.js"></script>
+  <script src="vendor/xterm-addon-attach.js"></script>
+  <script src="vendor/xterm-addon-fit.js"></script>
   <script>
-    const params = (new URL(document.location)).searchParams;
-    const container = params.get("container");
+    async function POST(url, options = {}) {
+      const response = await fetch(url, {...options, method: "POST"});
 
-    if (!container)
-      throw Error("No container to attach to was specified in the query string.");
+      if (!response.ok) {
+        const error = `POST ${url} failed`;
+        console.error("%s: %o", error, response);
+        throw error;
+      }
 
-    const term = new Terminal();
+      return response;
+    }
 
-    const socket = new WebSocket(`ws://localhost:8080/containers/${container}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`);
-    const attachAddon = new AttachAddon.AttachAddon(socket);
-    term.loadAddon(attachAddon);
+    function queryString(kv = {}) {
+      return (new URLSearchParams(kv)).toString();
+    }
 
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
+    class Container {
+      constructor(id) {
+        this.id = id;
+      }
 
-    term.open(document.getElementById("terminal"));
-    fitAddon.fit();
+      static async create() {
+        const createResponse = await POST("containers/create");
+        const newContainer = await createResponse.json();
+
+        console.info(`Created container «${newContainer.Id}»`);
+
+        return new Container(newContainer.Id);
+      }
+
+      async start() {
+        if (!this.id)
+          throw "Container.start() called on object with no id";
+
+        await POST(`containers/${this.id}/start`);
+        console.info(`Started container «${this.id}»`);
+      }
+
+      async resizeTty(w, h) {
+        if (!this.id)
+          throw "Container.resizeTty() called on object with no id";
+
+        await POST(`containers/${this.id}/resize?${queryString({w, h})}`);
+        console.info(`Resized TTY to ${w}×${h} for container «${this.id}»`);
+      }
+
+      attachSocket() {
+        // XXX TODO: Switch to wss
+        // XXX TODO: Switch to our own endpoint
+        return new WebSocket(`ws://localhost:8080/v1.40/containers/${this.id}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`);
+      }
+    }
+
+    try {
+      launch();
+    } catch (error) {
+      console.error("Launch failure: %o", error);
+    }
+
+    async function launch() {
+      const term = new Terminal();
+
+      const fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+
+      term.open(document.getElementById("terminal"));
+      fitAddon.fit();
+
+      // XXX TODO: add onresize listener to window to call fitAddon.fit(), debounced
+
+      /****/
+
+      const existingContainerId = (new URL(document.location)).searchParams.get("container");
+      let container;
+
+      // XXX TODO: Sanitize existingContainerId
+      if (existingContainerId) {
+        console.info(`Using existing container «${existingContainerId}»`);
+        container = new Container(existingContainerId);
+      } else {
+        console.info("Launching new container…");
+        container = await Container.create();
+        container.start();
+      }
+
+      term.onResize(({cols, rows}) => container.resizeTty(cols, rows));
+      container.resizeTty(term.cols, term.rows);
+
+      console.info(`Attaching to container «${container.id}»…`);
+      const attachAddon = new AttachAddon.AttachAddon(container.attachSocket());
+      term.loadAddon(attachAddon);
+    }
   </script>
 </body>
 </html>
