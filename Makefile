@@ -10,9 +10,12 @@ build-image:
 
 vendored_node_modules := \
 	node_modules/xterm/lib/xterm.js \
+	node_modules/xterm/lib/xterm.js.map \
 	node_modules/xterm/css/xterm.css \
 	node_modules/xterm-addon-attach/lib/xterm-addon-attach.js \
-	node_modules/xterm-addon-fit/lib/xterm-addon-fit.js
+	node_modules/xterm-addon-attach/lib/xterm-addon-attach.js.map \
+	node_modules/xterm-addon-fit/lib/xterm-addon-fit.js \
+	node_modules/xterm-addon-fit/lib/xterm-addon-fit.js.map
 
 build-frontend:
 	npm ci

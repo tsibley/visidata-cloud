@@ -73,6 +73,7 @@ def api_containers_resize(container_id):
 @app.route("/containers/<container_id>/attach/ws", methods = ["POST"])
 def api_containers_attach_ws(container_id):
     ...
+    # XXX: redirect to ws proxy?
 
 
 if __name__ == "__main__":

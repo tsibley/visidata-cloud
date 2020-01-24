@@ -28,7 +28,7 @@
 
       if (!response.ok) {
         const error = `POST ${url} failed`;
-        console.error("%s: %o", error, response);
+        console.error({msg: error, response});
         throw error;
       }
 
@@ -37,6 +37,19 @@
 
     function queryString(kv = {}) {
       return (new URLSearchParams(kv)).toString();
+    }
+
+    function debounce(delay, f) {
+      let timeout;
+
+      return function() {
+        const f_ = () => f.apply(this, arguments);
+
+        if (timeout)
+          clearTimeout(timeout);
+
+        timeout = setTimeout(f_, delay);
+      };
     }
 
     class Container {
@@ -48,7 +61,7 @@
         const createResponse = await POST("containers/create");
         const newContainer = await createResponse.json();
 
-        console.info(`Created container «${newContainer.Id}»`);
+        console.info({msg: "created new container", container: newContainer.Id});
 
         return new Container(newContainer.Id);
       }
@@ -58,7 +71,7 @@
           throw "Container.start() called on object with no id";
 
         await POST(`containers/${this.id}/start`);
-        console.info(`Started container «${this.id}»`);
+        console.info({msg: "started container", container: this.id});
       }
 
       async resizeTty(w, h) {
@@ -66,21 +79,21 @@
           throw "Container.resizeTty() called on object with no id";
 
         await POST(`containers/${this.id}/resize?${queryString({w, h})}`);
-        console.info(`Resized TTY to ${w}×${h} for container «${this.id}»`);
+        console.info({msg: "resized tty", container: this.id, cols: w, rows: h});
       }
 
       attachSocket() {
         // XXX TODO: Switch to wss
-        // XXX TODO: Switch to our own endpoint
+        // XXX TODO: Switch to our own server endpoint
+        // XXX TODO: Ensure the server does Origin checking and eventually authn/authz
         return new WebSocket(`ws://localhost:8080/v1.40/containers/${this.id}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`);
       }
     }
 
-    try {
-      launch();
-    } catch (error) {
-      console.error("Launch failure: %o", error);
-    }
+    /****/
+
+    launch()
+      .catch(error => console.error({msg: "launch failure", error}));
 
     async function launch() {
       const term = new Terminal();
@@ -91,27 +104,32 @@
       term.open(document.getElementById("terminal"));
       fitAddon.fit();
 
-      // XXX TODO: add onresize listener to window to call fitAddon.fit(), debounced
+      window.addEventListener("resize", debounce(200, () => fitAddon.fit()));
 
       /****/
 
       const existingContainerId = (new URL(document.location)).searchParams.get("container");
+
+      if (existingContainerId && !existingContainerId.match(/^[a-zA-Z0-9_-]+$/))
+        throw "container query parameter contains unpermitted characters";
+
       let container;
 
-      // XXX TODO: Sanitize existingContainerId
       if (existingContainerId) {
-        console.info(`Using existing container «${existingContainerId}»`);
+        console.info({msg: "using existing container", container: existingContainerId});
         container = new Container(existingContainerId);
       } else {
-        console.info("Launching new container…");
+        console.info({msg: "launching new container"});
         container = await Container.create();
-        container.start();
+        await container.start();
       }
 
-      term.onResize(({cols, rows}) => container.resizeTty(cols, rows));
+      history.replaceState(null, "", `?${queryString({container: container.id})}`);
+
+      term.onResize(debounce(200, ({cols, rows}) => container.resizeTty(cols, rows)));
       container.resizeTty(term.cols, term.rows);
 
-      console.info(`Attaching to container «${container.id}»…`);
+      console.info({msg: "attaching to container", container: container.id});
       const attachAddon = new AttachAddon.AttachAddon(container.attachSocket());
       term.loadAddon(attachAddon);
     }
