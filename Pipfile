@@ -9,6 +9,9 @@ verify_ssl = true
 flask = "*"
 docker = "*"
 starlette = "*"
+uvicorn = "*"
+aiofiles = "*"
+websockets = "*"
 
 [requires]
 python_version = "3.8"

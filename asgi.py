@@ -6,8 +6,14 @@ order to take advantage of an existing API design instead of bikeshedding my
 own.  (My initial prototypes also used direct access to the Docker Engine API,
 but that's untenable from a security standpoint.)
 """
+import asyncio
+import websockets
 from docker import DockerClient, errors as DockerError
+from functools import partial
+from pathlib import Path
 from starlette.applications import Starlette
+from starlette.endpoints import WebSocketEndpoint
+from starlette.responses import FileResponse, JSONResponse, PlainTextResponse
 from starlette.routing import Route, Mount, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from os import environ
@@ -15,15 +21,15 @@ from os import environ
 
 VISIDATA_IMAGE = environ.get("VISIDATA_IMAGE") or "visidata"
 
-
+root = Path(__file__).parent
 docker = DockerClient.from_env()
 
 
 def vd(request):
-    return send_file("vd.html", "text/html; charset=UTF-8")
+    return FileResponse(root / "vd.html")
 
 
-def containers_create(request):
+def create_container(request):
     container = docker.containers.create(
         VISIDATA_IMAGE,
         auto_remove = True,
@@ -32,50 +38,99 @@ def containers_create(request):
         tty         = True,
         stdin_open  = True)
 
-    return {"Id": container.id}, 200
+    return JSONResponse({"Id": container.id})
 
 
-# XXX TODO: use app.url_map to make this <container:id> and do the .get() + 404
-# handling for us
-#    <https://flask.palletsprojects.com/en/1.1.x/api/#flask.Flask.url_map>
+def start_container(request):
+    id = request.path_params["id"]
 
-@app.route("/containers/<container_id>/start", methods = ["POST"])
-def api_containers_start(container_id):
     try:
-        container = docker.containers.get(container_id)
+        container = docker.containers.get(id)
     except DockerError.NotFound as error:
-        return {"message": error.explanation}, 404
+        return JSONResponse({"message": error.explanation}, 404)
 
     container.start()
-    return "", 204
+
+    return PlainTextResponse("", 204)
 
 
-@app.route("/containers/<container_id>/resize", methods = ["POST"])
-def api_containers_resize(container_id):
-    h = request.args.get("h")
-    w = request.args.get("w")
+def resize_container_tty(request):
+    id = request.path_params["id"]
+    h  = request.query_params.get("h")
+    w  = request.query_params.get("w")
 
     try:
-        container = docker.containers.get(container_id)
+        container = docker.containers.get(id)
     except DockerError.NotFound as error:
-        return {"message": error.explanation}, 404
+        return JSONResponse({"message": error.explanation}, 404)
 
     container.resize(h, w)
-    return "", 204
+
+    return PlainTextResponse("", 204)
 
 
-@app.route("/containers/<container_id>/attach/ws", methods = ["POST"])
-def api_containers_attach_ws(container_id):
-    ...
-    # XXX: redirect to ws proxy?
+class attach_to_container(WebSocketEndpoint):
+    docker_socket = None
+    docker_receive = None
 
+    async def on_connect(self, browser_socket):
+        # XXX FIXME: docker.api.base_url
+        # do a bit of munging from http[s]://localhost/… → connect("ws[s]://localhost/…")
+        # do a bit of munging from http[s]+unix://localhost/… → unix_connect(…path…, "ws[s]://localhost/…")
+
+        # Connect to the container
+        id = browser_socket.path_params["id"]
+        url = str(browser_socket.url.replace(scheme = "ws", netloc = "localhost:8080"))
+
+        try:
+            self.docker_socket = await websockets.connect(url)
+        except websockets.exceptions.InvalidStatusCode as error:
+            # XXX FIXME
+            #return PlainTextResponse("", error.status_code)
+            await browser_socket.close()
+
+        await browser_socket.accept()
+
+        async def docker_receive():
+            # Forward data from the container to the browser.
+            async for data in self.docker_socket:
+                if isinstance(data, bytes):
+                    await browser_socket.send_bytes(data)
+                elif isinstance(data, str):
+                    await browser_socket.send_text(data)
+                else:
+                    raise Exception("websocket frame from docker socket is not bytes or str but {type(data).__name__}")
+
+        self.docker_receive = asyncio.create_task(docker_receive())
+
+    async def on_receive(self, browser_socket, data):
+        # Forward data from the browser to the container.
+        try:
+            await self.docker_socket.send(data)
+        except websockets.exceptions.ConnectionClosed:
+            await browser_socket.close()
+
+    async def on_disconnect(self, browser_socket, close_code):
+        if self.docker_receive:
+            self.docker_receive.cancel()
+
+        if self.docker_socket:
+            await self.docker_socket.close()
+
+
+Get  = partial(Route, methods = ["GET"])
+Post = partial(Route, methods = ["POST"])
 
 routes = [
-    Route("/vd", vd),
-    Mount("/vendor", StaticFiles(directory = "vendor")),
-    Route("/containers/create", containers_create, methods = ["POST"]),
+    Get("/vd", vd),
+    Post("/containers/create", create_container),
+    Post("/containers/{id}/start", start_container),
+    Post("/containers/{id}/resize", resize_container_tty),
+    WebSocketRoute("/containers/{id}/attach/ws", attach_to_container),
+    Mount("/vendor", StaticFiles(directory = root / "vendor")),
 ]
 
+app = Starlette(routes = routes)
 
 if __name__ == "__main__":
     import uvicorn

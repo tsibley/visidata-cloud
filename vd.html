@@ -27,12 +27,18 @@
       const response = await fetch(url, {...options, method: "POST"});
 
       if (!response.ok) {
-        const error = `POST ${url} failed`;
-        console.error({msg: error, response});
-        throw error;
+        log("request.failed", {response});
+        throw `POST ${url} failed`;
       }
 
       return response;
+    }
+
+    function log(msg, data = {}) {
+      const level = msg.match(/(^|\b)failed(\b|$)/)
+        ? "error"
+        : "debug";
+      console[level]({msg, ...data});
     }
 
     function queryString(kv = {}) {
@@ -58,12 +64,14 @@
       }
 
       static async create() {
+        log("container.creating");
+
         const createResponse = await POST("containers/create");
-        const newContainer = await createResponse.json();
+        const createResult = await createResponse.json();
 
-        console.info({msg: "created new container", container: newContainer.Id});
+        log("container.created", {container: createResult.Id});
 
-        return new Container(newContainer.Id);
+        return new Container(createResult.Id);
       }
 
       async start() {
@@ -71,7 +79,7 @@
           throw "Container.start() called on object with no id";
 
         await POST(`containers/${this.id}/start`);
-        console.info({msg: "started container", container: this.id});
+        log("container.started", {container: this.id});
       }
 
       async resizeTty(w, h) {
@@ -79,23 +87,28 @@
           throw "Container.resizeTty() called on object with no id";
 
         await POST(`containers/${this.id}/resize?${queryString({w, h})}`);
-        console.info({msg: "resized tty", container: this.id, cols: w, rows: h});
+        log("container.resized-tty", {container: this.id, cols: w, rows: h});
       }
 
       attachSocket() {
         // XXX TODO: Switch to wss
         // XXX TODO: Switch to our own server endpoint
         // XXX TODO: Ensure the server does Origin checking and eventually authn/authz
-        return new WebSocket(`containers/${this.id}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`);
+        const url = new URL(`containers/${this.id}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`, document.location);
+        url.protocol = "ws";
+
+        return new WebSocket(url);
       }
     }
 
     /****/
 
     launch()
-      .catch(error => console.error({msg: "launch failure", error}));
+      .catch(error => log("launch.failed", {error}));
 
     async function launch() {
+      log("launch");
+
       const term = new Terminal();
 
       const fitAddon = new FitAddon.FitAddon();
@@ -116,10 +129,10 @@
       let container;
 
       if (existingContainerId) {
-        console.info({msg: "using existing container", container: existingContainerId});
+        log("launch.existing", {container: existingContainerId});
         container = new Container(existingContainerId);
       } else {
-        console.info({msg: "launching new container"});
+        log("launch.new");
         container = await Container.create();
         await container.start();
       }
@@ -129,8 +142,16 @@
       term.onResize(debounce(200, ({cols, rows}) => container.resizeTty(cols, rows)));
       container.resizeTty(term.cols, term.rows);
 
-      console.info({msg: "attaching to container", container: container.id});
-      const attachAddon = new AttachAddon.AttachAddon(container.attachSocket());
+      log("launch.attaching", {container: container.id});
+
+      const socket = container.attachSocket();
+
+      socket.addEventListener("error", event => {
+        log("launch.attach-failed", {container: container.id});
+        term.write("Failed to attach to container.");
+      });
+
+      const attachAddon = new AttachAddon.AttachAddon(socket);
       term.loadAddon(attachAddon);
     }
   </script>
