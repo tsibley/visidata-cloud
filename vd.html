@@ -38,7 +38,7 @@
       const level = msg.match(/(^|\b)failed(\b|$)/)
         ? "error"
         : "debug";
-      console[level]({msg, ...data});
+      console[level]({...data, msg: `frontend.${msg}`});
     }
 
     function queryString(kv = {}) {

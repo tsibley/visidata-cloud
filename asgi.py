@@ -7,22 +7,34 @@ own.  (My initial prototypes also used direct access to the Docker Engine API,
 but that's untenable from a security standpoint.)
 """
 import asyncio
+import logging
+import re
 import websockets
 from docker import DockerClient, errors as DockerError
+from docker.utils import parse_host as parse_docker_host
 from functools import partial
+from os import environ
 from pathlib import Path
 from starlette.applications import Starlette
-from starlette.endpoints import WebSocketEndpoint
 from starlette.responses import FileResponse, JSONResponse, PlainTextResponse
 from starlette.routing import Route, Mount, WebSocketRoute
 from starlette.staticfiles import StaticFiles
-from os import environ
+from starlette.websockets import WebSocketState
+from urllib.parse import urlsplit, urlunsplit
 
 
 VISIDATA_IMAGE = environ.get("VISIDATA_IMAGE") or "visidata"
 
+DOCKER_HOST = urlsplit(parse_docker_host(environ.get("DOCKER_HOST")))
+
+assert DOCKER_HOST.scheme in {"http", "https", "http+unix"}, \
+    f"DOCKER_HOST={DOCKER_HOST!r} uses an unsupported scheme"
+
+
 root = Path(__file__).parent
 docker = DockerClient.from_env()
+logger = logging.getLogger(__name__)
+logging.basicConfig()
 
 
 def vd(request):
@@ -69,53 +81,86 @@ def resize_container_tty(request):
     return PlainTextResponse("", 204)
 
 
-class attach_to_container(WebSocketEndpoint):
-    docker_socket = None
-    docker_receive = None
+async def attach_to_container(browser_socket):
+    # browser_socket is a starlette.websockets.WebSocket object
+    # container_socket is a websockets.client.WebSocketClientProtocol object
 
-    async def on_connect(self, browser_socket):
-        # XXX FIXME: docker.api.base_url
-        # do a bit of munging from http[s]://localhost/… → connect("ws[s]://localhost/…")
-        # do a bit of munging from http[s]+unix://localhost/… → unix_connect(…path…, "ws[s]://localhost/…")
+    # Figure out the Docker API ws[s]:// URL to connect to
+    id = browser_socket.path_params["id"]
+    query = browser_socket.url.query
 
-        # Connect to the container
-        id = browser_socket.path_params["id"]
-        url = str(browser_socket.url.replace(scheme = "ws", netloc = "localhost:8080"))
+    attach_url = urlunsplit((
+        {"http": "ws", "https": "wss", "http+unix": "ws"}[DOCKER_HOST.scheme],
+        DOCKER_HOST.netloc or "localhost",
+        f"/v1.40/containers/{id}/attach/ws",
+        query,
+        None
+    ))
 
-        try:
-            self.docker_socket = await websockets.connect(url)
-        except websockets.exceptions.InvalidStatusCode as error:
-            # XXX FIXME
-            #return PlainTextResponse("", error.status_code)
-            await browser_socket.close()
+    if DOCKER_HOST.scheme == "http+unix":
+        container_connection = websockets.unix_connect(DOCKER_HOST.path, attach_url)
+    else:
+        container_connection = websockets.connect(attach_url)
 
+    # Connect to the Docker API websocket endpoint
+    try:
+        log("container.attaching", container = id, url = attach_url)
+        container_socket = await container_connection
+    except websockets.exceptions.WebSocketException as error:
+        log("container.attach-failed", container = id, error = error)
+        return await browser_socket.close()
+
+    try:
         await browser_socket.accept()
 
-        async def docker_receive():
-            # Forward data from the container to the browser.
-            async for data in self.docker_socket:
+        # Coroutines to ferry data between the two sockets.
+        async def browser_to_container():
+            while True:
+                message = await browser_socket.receive()
+
+                # receive() updates client_state immediately based on the message.
+                if browser_socket.client_state != WebSocketState.CONNECTED:
+                    break
+
+                if "bytes" in message:
+                    await container_socket.send(message["bytes"])
+                elif "text" in message:
+                    await container_socket.send(message["text"])
+                else:
+                    raise RuntimeError(f"expected a 'bytes' or 'text' key in message: {message!r}")
+
+        async def container_to_browser():
+            async for data in container_socket:
                 if isinstance(data, bytes):
                     await browser_socket.send_bytes(data)
                 elif isinstance(data, str):
                     await browser_socket.send_text(data)
                 else:
-                    raise Exception("websocket frame from docker socket is not bytes or str but {type(data).__name__}")
+                    raise RuntimeError(f"expected a message of type bytes or str but got {type(data).__name__!r}")
 
-        self.docker_receive = asyncio.create_task(docker_receive())
+        # Run coroutines concurrently until one of them exits.
+        tasks = [
+            asyncio.create_task(browser_to_container()),
+            asyncio.create_task(container_to_browser())]
 
-    async def on_receive(self, browser_socket, data):
-        # Forward data from the browser to the container.
-        try:
-            await self.docker_socket.send(data)
-        except websockets.exceptions.ConnectionClosed:
-            await browser_socket.close()
+        done, pending = await asyncio.wait(tasks, return_when = asyncio.FIRST_COMPLETED)
 
-    async def on_disconnect(self, browser_socket, close_code):
-        if self.docker_receive:
-            self.docker_receive.cancel()
+        for task in pending:
+            task.cancel()
+    finally:
+        await container_socket.close()
+        await browser_socket.close()
 
-        if self.docker_socket:
-            await self.docker_socket.close()
+
+def log(msg, **data):
+    failed = re.compile(r"(^|\b)failed(\b|$)")
+    level = "error" if failed.search(msg) else "info"
+    getattr(logger, level)({
+        **data,
+        "msg": f"backend.{msg}",
+        "DOCKER_HOST": DOCKER_HOST.geturl(),
+        "VISIDATA_IMAGE": VISIDATA_IMAGE,
+    })
 
 
 Get  = partial(Route, methods = ["GET"])
@@ -127,8 +172,7 @@ routes = [
     Post("/containers/{id}/start", start_container),
     Post("/containers/{id}/resize", resize_container_tty),
     WebSocketRoute("/containers/{id}/attach/ws", attach_to_container),
-    Mount("/vendor", StaticFiles(directory = root / "vendor")),
-]
+    Mount("/vendor", StaticFiles(directory = root / "vendor"))]
 
 app = Starlette(routes = routes)
 
