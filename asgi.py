@@ -44,11 +44,25 @@ def vd(request):
 def create_container(request):
     container = docker.containers.create(
         VISIDATA_IMAGE,
-        auto_remove = True,
-        detach      = True,
-        init        = True,
-        tty         = True,
-        stdin_open  = True)
+        command       = ["--quitguard"],
+        init          = True,
+        detach        = True,
+        auto_remove   = True,
+        tty           = True,
+        stdin_open    = True,
+
+        # 100MB of RAM, no swap
+        mem_limit     = "100m",
+        memswap_limit = "100m",
+
+        # Equivalent to half a CPU, e.g. --cpus 0.5.  See
+        # <https://docs.docker.com/config/containers/resource_constraints/#configure-the-default-cfs-scheduler>.
+        cpu_period    = 100000,
+        cpu_quota     =  50000,
+
+        # Read-only root filesystem with homedir as writeable 100MB tmpfs
+        read_only     = True,
+        tmpfs         = {"/home/visidata": "rw,size=100m,mode=1700,uid=1000"})
 
     return JSONResponse({"Id": container.id})
 
@@ -82,6 +96,8 @@ def resize_container_tty(request):
 
 
 async def attach_to_container(browser_socket):
+    # XXX TODO: Do origin checking?
+
     # browser_socket is a starlette.websockets.WebSocket object
     # container_socket is a websockets.client.WebSocketClientProtocol object
 
