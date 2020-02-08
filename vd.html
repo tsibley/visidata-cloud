@@ -184,7 +184,8 @@
 
       socket.addEventListener("close", close => {
         log("socket.closed", {container: container.id, code: close.code});
-        term.writeln(`\r\n\r\nNO CARRIER`);
+        term.write(`\r\n\r\nNO CARRIER\r\n`);
+        delete State.container;
       });
 
       const attachAddon = new AttachAddon.AttachAddon(socket);

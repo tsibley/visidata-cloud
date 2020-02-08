@@ -1,10 +1,10 @@
 """
-RESTful web API for VisiData Cloud's backend.
+VisiData Cloud backend.
 
 The ``/containers/…`` endpoints surficially mimic the Docker Engine API in
 order to take advantage of an existing API design instead of bikeshedding my
-own.  (My initial prototypes also used direct access to the Docker Engine API,
-but that's untenable from a security standpoint.)
+own.  (This was also handy because my initial prototypes used direct access to
+the Docker Engine API, but that's untenable from a security standpoint.)
 """
 import asyncio
 import logging
