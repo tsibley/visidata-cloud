@@ -31,14 +31,16 @@ assert DOCKER_HOST.scheme in {"http", "https", "http+unix"}, \
     f"DOCKER_HOST={DOCKER_HOST!r} uses an unsupported scheme"
 
 
-root = Path(__file__).parent
+frontend = Path(__file__).parent.parent / "frontend"
+assert frontend.is_dir()
+
 docker = DockerClient.from_env()
 logger = logging.getLogger(__name__)
 logging.basicConfig()
 
 
 def vd(request):
-    return FileResponse(root / "vd.html")
+    return FileResponse(frontend / "vd.html")
 
 
 def create_container(request):
@@ -183,12 +185,13 @@ Get  = partial(Route, methods = ["GET"])
 Post = partial(Route, methods = ["POST"])
 
 routes = [
+    Get("/", index),
     Get("/vd", vd),
     Post("/containers/create", create_container),
     Post("/containers/{id}/start", start_container),
     Post("/containers/{id}/resize", resize_container_tty),
     WebSocketRoute("/containers/{id}/attach/ws", attach_to_container),
-    Mount("/vendor", StaticFiles(directory = root / "vendor"))]
+    Mount("/assets", StaticFiles(directory = frontend / "assets"))]
 
 app = Starlette(routes = routes)
 
