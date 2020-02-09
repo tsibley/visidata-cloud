@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+cd "$(dirname "$0")"
+exec pipenv run uvicorn --reload asgi:app

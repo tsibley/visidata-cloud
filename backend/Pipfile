@@ -6,10 +6,10 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
+aiofiles = "*"
 docker = "*"
 starlette = "*"
 uvicorn = "*"
-aiofiles = "*"
 websockets = "*"
 
 [requires]
