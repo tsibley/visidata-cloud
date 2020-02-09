@@ -3,9 +3,21 @@
 <head>
   <title>VisiData Cloud</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="assets/vd.css">
   <link rel="stylesheet" href="assets/vendor/xterm.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono&display=swap">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+
+      margin: 0;
+      height: 100vh;
+    }
+
+    #terminal {
+      flex: auto;
+    }
+  </style>
 </head>
 <body>
   <div id="terminal"></div>
@@ -147,6 +159,8 @@
 
       window.addEventListener("resize", debounce(200, () => fitAddon.fit()));
 
+      term.write("ATM0DT17607067425\r\n");
+
       /****/
 
       if (State.container && !State.container.match(/^[a-zA-Z0-9_-]+$/))
@@ -173,7 +187,7 @@
 
       socket.addEventListener("close", close => {
         log("socket.closed", {container: container.id, code: close.code});
-        term.write(`\r\n\r\nNO CARRIER\r\n`);
+        term.write("NO CARRIER\r\n");
         delete State.container;
       });
 

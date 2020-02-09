@@ -9,6 +9,7 @@ the Docker Engine API, but that's untenable from a security standpoint.)
 import asyncio
 import logging
 import re
+import starlette.convertors
 import websockets
 from docker import DockerClient, errors as DockerError
 from docker.utils import parse_host as parse_docker_host
@@ -30,13 +31,16 @@ DOCKER_HOST = urlsplit(parse_docker_host(environ.get("DOCKER_HOST")))
 assert DOCKER_HOST.scheme in {"http", "https", "http+unix"}, \
     f"DOCKER_HOST={DOCKER_HOST!r} uses an unsupported scheme"
 
-
-frontend = Path(__file__).parent.parent / "frontend"
-assert frontend.is_dir()
+frontend = Path(__file__).resolve().parent.parent / "frontend"
+assert frontend.is_dir(), f"{frontend} is not a directory"
 
 docker = DockerClient.from_env()
 logger = logging.getLogger(__name__)
 logging.basicConfig()
+
+
+def index(request):
+    return FileResponse(frontend / "index.html")
 
 
 def vd(request):
@@ -184,13 +188,28 @@ def log(msg, **data):
 Get  = partial(Route, methods = ["GET"])
 Post = partial(Route, methods = ["POST"])
 
+class ContainerIdConvertor(starlette.convertors.Convertor):
+    # Truncated container ids are 12 hexadecimal digits, full ids 64
+    regex = "[0-9a-f]{12,64}"
+
+    def convert(self, value):
+        return str(value)
+
+    def to_string(self, value):
+        value = str(value)
+        assert set("012345679abcdef") == set(value), "May only contain hexadecimal digits"
+        assert 12 <= len(value) <= 64, "May not be shorter than 12 digits or more than 64"
+        return value
+
+starlette.convertors.CONVERTOR_TYPES["container"] = ContainerIdConvertor()
+
 routes = [
     Get("/", index),
     Get("/vd", vd),
     Post("/containers/create", create_container),
-    Post("/containers/{id}/start", start_container),
-    Post("/containers/{id}/resize", resize_container_tty),
-    WebSocketRoute("/containers/{id}/attach/ws", attach_to_container),
+    Post("/containers/{id:container}/start", start_container),
+    Post("/containers/{id:container}/resize", resize_container_tty),
+    WebSocketRoute("/containers/{id:container}/attach/ws", attach_to_container),
     Mount("/assets", StaticFiles(directory = frontend / "assets"))]
 
 app = Starlette(routes = routes)
