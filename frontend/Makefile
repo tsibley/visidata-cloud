@@ -16,8 +16,8 @@ vendored_node_modules := \
 
 vendor:
 	npm ci
-	mkdir -p vendor
-	cp -v $(vendored_node_modules) vendor/
+	mkdir -p assets/vendor
+	cp -v $(vendored_node_modules) assets/vendor/
 	rm -rf node_modules
 
 .PHONY: vendor

@@ -3,26 +3,15 @@
 <head>
   <title>VisiData Cloud</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="vendor/xterm.css">
+  <link rel="stylesheet" href="assets/vd.css">
+  <link rel="stylesheet" href="assets/vendor/xterm.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono&display=swap">
-  <style>
-    body {
-      display: flex;
-      flex-direction: column;
-
-      margin: 0;
-      height: 100vh;
-    }
-    #terminal {
-      flex: auto;
-    }
-  </style>
 </head>
 <body>
   <div id="terminal"></div>
-  <script src="vendor/xterm.js"></script>
-  <script src="vendor/xterm-addon-attach.js"></script>
-  <script src="vendor/xterm-addon-fit.js"></script>
+  <script src="assets/vendor/xterm.js"></script>
+  <script src="assets/vendor/xterm-addon-attach.js"></script>
+  <script src="assets/vendor/xterm-addon-fit.js"></script>
   <script>
     async function POST(url, options = {}) {
       const response = await fetch(url, {...options, method: "POST"});
