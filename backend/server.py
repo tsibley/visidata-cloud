@@ -210,7 +210,7 @@ routes = [
     Post("/containers/{id:container}/start", start_container),
     Post("/containers/{id:container}/resize", resize_container_tty),
     WebSocketRoute("/containers/{id:container}/attach/ws", attach_to_container),
-    Mount("/assets", StaticFiles(directory = frontend / "assets"))]
+    Mount("/", StaticFiles(directory = frontend / "public"))]
 
 app = Starlette(routes = routes)
 
