@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir https://github.com/saulpw/visidata/archive/$RELEA
 RUN adduser -D visidata
 WORKDIR /home/visidata
 
+# XXX FIXME: never gets used because /home/visidata is overlayed with tmpfs by backend server
 COPY visidatarc .visidatarc
 RUN chown -R visidata:visidata .
 

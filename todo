@@ -1,3 +1,6 @@
+Ctrl-T
+Ctrl-W
+
 terminal options
     disable scrollback
     test curses-based scrolling works
