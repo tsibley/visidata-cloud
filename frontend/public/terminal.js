@@ -30,8 +30,11 @@ export class Terminal extends EventTarget {
     this.fitAddon.fit();
 
     window.addEventListener("resize",
-      debounce(200, () =>
-        this.fitAddon.fit()));
+      debounce(200, () => {
+        log("window.resized");
+        this.fitAddon.fit();
+      })
+    );
 
     /* VisiData doesn't emit title changes right now, but it'd be nice to make
      * that happen to reflect the current sheet.
@@ -50,9 +53,10 @@ export class Terminal extends EventTarget {
      */
     container.resizeTty(this.xterm.cols, this.xterm.rows);
 
-    this.xterm.onResize(
-      debounce(200, ({cols, rows}) =>
-        container.resizeTty(cols, rows)));
+    this.xterm.onResize(({cols, rows}) => {
+      log("terminal.resized", {cols, rows});
+      container.resizeTty(cols, rows);
+    });
 
     /* Attach to the container socket.
      */
