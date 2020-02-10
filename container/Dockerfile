@@ -18,6 +18,8 @@ RUN adduser -D visidata
 USER visidata
 WORKDIR /home/visidata
 
+COPY visidatarc .visidatarc
+
 ENV PAGER="less -SRFX"
 
 ENTRYPOINT ["vd"]
