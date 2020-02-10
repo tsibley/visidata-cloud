@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css?family=IBM+Plex+Mono:400,400i,700,700i&display=fallback&subset=latin-ext");
-
 html {
   --primary-color: hsl(180, 75%, 55%);
   --bg-color: black;

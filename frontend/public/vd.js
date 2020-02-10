@@ -10,7 +10,7 @@ async function launch() {
   log("launch");
 
   const term = new Terminal();
-  term.init(document.getElementById("terminal"));
+  await term.init(document.getElementById("terminal"));
   term.write("ATM0DT17607067425\r\n");
 
   let container;

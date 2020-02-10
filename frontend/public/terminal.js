@@ -19,8 +19,9 @@ export class Terminal extends EventTarget {
   xterm = new XTerm(terminalOptions);
   fitAddon = new FitAddon();
 
-  init(element) {
+  async init(element) {
     log("terminal.init", {element});
+    await document.fonts.ready;
     this.xterm.open(element);
     this.xterm.focus();
 
