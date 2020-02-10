@@ -21,7 +21,10 @@ export class Terminal extends EventTarget {
 
   async init(element) {
     log("terminal.init", {element});
+
+    // XXX TODO: Is this a good idea? It might be a terrible idea.
     await document.fonts.ready;
+
     this.xterm.open(element);
     this.xterm.focus();
 
