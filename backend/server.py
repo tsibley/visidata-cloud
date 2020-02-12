@@ -115,7 +115,8 @@ async def attach_to_container(browser_socket):
 
     It'd be nice if they had the same API, but alas, they don't.
     """
-    # XXX TODO: security: validate Origin is in allowed list
+    # XXX TODO: security: validate Origin is in allowed list before adding any
+    # auth or user state.
 
     # Figure out the Docker API ws[s]:// URL to connect to
     id = browser_socket.path_params["id"]
