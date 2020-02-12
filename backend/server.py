@@ -50,7 +50,6 @@ def vd(request):
 def create_container(request):
     container = docker.containers.create(
         VISIDATA_IMAGE,
-        command     = ["--quitguard"],
         init        = True,
         detach      = True,
         auto_remove = True,
