@@ -50,12 +50,12 @@ def vd(request):
 def create_container(request):
     container = docker.containers.create(
         VISIDATA_IMAGE,
-        command       = ["--quitguard"],
-        init          = True,
-        detach        = True,
-        auto_remove   = True,
-        tty           = True,
-        stdin_open    = True,
+        command     = ["--quitguard"],
+        init        = True,
+        detach      = True,
+        auto_remove = True,
+        tty         = True,
+        stdin_open  = True,
 
         # 100MB of RAM, no swap
         mem_limit     = "100m",
@@ -63,12 +63,14 @@ def create_container(request):
 
         # Equivalent to half a CPU, e.g. --cpus 0.5.  See
         # <https://docs.docker.com/config/containers/resource_constraints/#configure-the-default-cfs-scheduler>.
-        cpu_period    = 100000,
-        cpu_quota     =  50000,
+        cpu_period = 100000,
+        cpu_quota  =  50000,
 
-        # Read-only root filesystem with homedir as writeable 100MB tmpfs
-        read_only     = True,
-        tmpfs         = {"/home/visidata": "rw,size=100m,mode=1700,uid=1000"})
+        # Read-only root filesystem with homedir as writeable 100MB tmpfs + a small cache dir
+        read_only = True,
+        tmpfs     = {
+            "/home/visidata": "rw,size=100m,mode=1700,uid=1000",
+            "/etc/visidata/cache": "rw,size=10m,mode=1700,uid=1000"})
 
     return JSONResponse({"Id": container.id})
 

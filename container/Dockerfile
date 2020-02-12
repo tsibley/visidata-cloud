@@ -28,11 +28,7 @@ COPY visidatarc /etc/visidatarc
 ADD https://raw.githubusercontent.com/ajkerrigan/visidata-plugins/1f0ff2a8610a1f5f6ffe56634688e60d21b72728/plugins/vds3.py \
     /etc/visidata/plugins/
 
-# Need a writable cache dir
-RUN mkdir -p /tmp/visidata-cache \
- && ln -svnf /tmp/visidata-cache /etc/visidata/cache
-
-RUN chown -R visidata:visidata /etc/visidata /etc/visidatarc /tmp/visidata-cache
+RUN chown -R visidata:visidata /etc/visidata /etc/visidatarc
 
 ENV PAGER="less -SRFX"
 
