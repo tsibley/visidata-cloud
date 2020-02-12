@@ -14,6 +14,17 @@ const terminalOptions = {
   fontFamily: "'IBM Plex Mono', monospace",
 };
 
+/* This should stay synced with the faces requested in the stylesheet
+ * hot-loaded from Google Fonts.  See Terminal.loadFonts() below for more
+ * details.
+ */
+const fontFaces = [
+  "400 1em 'IBM Plex Mono'",
+  "700 1em 'IBM Plex Mono'",
+  "400 italic 1em 'IBM Plex Mono'",
+  "700 italic 1em 'IBM Plex Mono'",
+];
+
 
 export class Terminal extends EventTarget {
   xterm = new XTerm(terminalOptions);
@@ -22,8 +33,7 @@ export class Terminal extends EventTarget {
   async init(element) {
     log("terminal.init", {element});
 
-    // XXX TODO: Is this a good idea? It might be a terrible idea.
-    await document.fonts.ready;
+    await this.loadFonts();
 
     this.xterm.open(element);
     this.xterm.focus();
@@ -47,6 +57,22 @@ export class Terminal extends EventTarget {
       log("title-changed", {title});
       document.title = title;
     });
+  }
+
+  async loadFonts() {
+    /* XXX TODO: Is this a good idea? It might be a terrible idea.
+     *
+     * The problem is that the webfonts we use *must* be actually loaded, not
+     * just configured with CSS, *before* we call xterm.open(). Otherwise,
+     * xterm will initialize its internal font handling and character sizing
+     * with the fallback font, only to then be fubar when the browser swaps in
+     * the webfont some moments later.
+     *
+     * Normally browsers wait to actually load the font until it is first used
+     * in a DOM element, but that doesn't work here because xterm draws
+     * characters onto a bitmap canvas instead of using actual DOM elements.
+     */
+    await Promise.all(fontFaces.map(face => document.fonts.load(face)));
   }
 
   attach(container) {
