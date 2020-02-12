@@ -53,15 +53,20 @@ See above, with some more thoughts below.
 
   * Supporting natural copy/paste will be tricky.
     - vd configured with helper clipboard commands
+
     - container ⇄ browser in-band signaling using custom escape codes (or a
       side-channel)
+
     - keyboard shortcuts? xterm currently binds paste to Shift-Insert, but
       this isn't natural.
 
   * Drag-and-drop of local files
     - Upload file from browser to backend, into temporary storage shared by
-      backend and container (either local or remote, like, S3).
-    - Trigger vd macro or input strings to load that file as a new sheet, e.g. `Esc`, `Esc`, `space`, `open-file`, `Enter`, `<path/url>`, `Enter`.
+      backend and container (either local or remote, like, S3), e.g. `PUT
+      /containers/{id}/storage/{path…}`.
+
+    - Trigger vd macro or input strings to load that file as a new sheet, e.g.
+      `Esc`, `Esc`, `space`, `open-file`, `Enter`, `<path/url>`, `Enter`.
 
 ### Bugs
 
