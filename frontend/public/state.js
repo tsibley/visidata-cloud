@@ -3,11 +3,19 @@
  * StateProxyHandler implements a Proxy "handler" to read/write state from the
  * document location and History API.  The upshot is that state accesses and
  * updates work just like normal property accesses and updates.
+ *
+ * Note that the "target", an empty Object, is a placeholder that's not used,
+ * but is required by the Proxy interface.
  */
 
 class StateProxyHandler {
   static get(_, key) {
-    return this.query.get(key);
+    const query = this.query;
+
+    if (key === Symbol.iterator)
+      return query[Symbol.iterator].bind(query)
+    else
+      return query.get(key);
   }
 
   static has(_, key) {
@@ -28,6 +36,33 @@ class StateProxyHandler {
     return true;
   }
 
+  static ownKeys(_) {
+    return [...this.query.keys()];
+  }
+
+  static getOwnPropertyDescriptor(_, key) {
+    const query = this.query;
+
+    if (key === Symbol.iterator)
+      return {
+        value: this.get(_, key),
+        writable: false,
+        configurable: false,
+        enumerable: false,
+      }
+
+    else if (query.has(key))
+      return {
+        value: this.get(_, key),
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      }
+
+    else
+      return undefined;
+  }
+
   static get query() {
     return (new URL(document.location)).searchParams;
   }
@@ -37,4 +72,6 @@ class StateProxyHandler {
   }
 }
 
-export const State = new Proxy(new Map(), StateProxyHandler);
+export const State = new Proxy({}, StateProxyHandler);
+
+window.State = State;

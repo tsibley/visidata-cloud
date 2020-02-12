@@ -1,4 +1,4 @@
-import {log} from "./logging.js";
+import {log, throw_} from "./logging.js";
 
 export class Container {
   constructor(id) {
@@ -33,10 +33,10 @@ export class Container {
   }
 
   attachSocket() {
-    const url = new URL(`containers/${this.id}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`, document.location);
+    const wsProtocol = new Map([["http:", "ws:"], ["https:", "wss:"]]);
 
-    // XXX TODO: Switch to wss
-    url.protocol = "ws";
+    const url = new URL(`containers/${this.id}/attach/ws?logs=1&stream=1&stdin=1&stdout=1&stderr=1`, document.location);
+    url.protocol = wsProtocol.get(url.protocol) || throw_(`document.location has unknown protocol: ${url.protocol}`);
 
     log("socket.opening", {container: this.id, url});
     const socket = new WebSocket(url);

@@ -102,10 +102,18 @@ def resize_container_tty(request):
 
 
 async def attach_to_container(browser_socket):
-    # XXX TODO: Do origin checking?
+    """
+    This route is a websocket transceiver/proxy.  It receives data from a
+    websocket connected to the browser and transmits it to a websocket
+    connected to the container (via Docker's API).  Likewise, data received
+    from the container is transmitted to the browser.
 
-    # browser_socket is a starlette.websockets.WebSocket object
-    # container_socket is a websockets.client.WebSocketClientProtocol object
+    The browser_socket is a starlette.websockets.WebSocket object.
+    The container_socket is a websockets.client.WebSocketClientProtocol object.
+
+    It'd be nice if they had the same API, but alas, they don't.
+    """
+    # XXX TODO: security: validate Origin is in allowed list
 
     # Figure out the Docker API ws[s]:// URL to connect to
     id = browser_socket.path_params["id"]
@@ -140,7 +148,8 @@ async def attach_to_container(browser_socket):
             while True:
                 message = await browser_socket.receive()
 
-                # receive() updates client_state immediately based on the message.
+                # receive() updates client_state immediately based on the
+                # message, so it's safe to check it here.
                 if browser_socket.client_state != WebSocketState.CONNECTED:
                     break
 
