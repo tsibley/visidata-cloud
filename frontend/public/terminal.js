@@ -60,7 +60,8 @@ export class Terminal extends EventTarget {
   }
 
   async loadFonts() {
-    /* XXX TODO: Is this a good idea? It might be a terrible idea.
+    /* XXX TODO: Is this a good idea?  It might be a terrible idea if the fonts
+     * sometimes take forever to load.
      *
      * The problem is that the webfonts we use *must* be actually loaded, not
      * just configured with CSS, *before* we call xterm.open(). Otherwise,
