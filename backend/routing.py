@@ -2,7 +2,7 @@
 Routing helpers.
 """
 from functools import partial
-from starlette.convertors import CONVERTER_TYPES, Convertor
+from starlette.convertors import CONVERTOR_TYPES, Convertor
 from starlette.routing import Route
 
 

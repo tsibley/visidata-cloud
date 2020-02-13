@@ -8,8 +8,9 @@ the Docker Engine API, but that's untenable from a security standpoint.)
 """
 from starlette.applications import Starlette
 from starlette.routing import Mount, WebSocketRoute
-from .routing import Get, Post
-from .endpoints import *
+
+from routing import Get, Post
+from endpoints import *
 
 
 routes = [
