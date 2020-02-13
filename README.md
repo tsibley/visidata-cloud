@@ -34,7 +34,7 @@ First, make sure the following are installed:
 
 Then, run `make` to install the backend deps and build the container.
 
-Finally, run `./backend/run` to start the backend server.
+Finally, run `./backend/run-dev` to start the backend dev server.
 
 Visit [http://localhost:8000](http://localhost:8000).
 
