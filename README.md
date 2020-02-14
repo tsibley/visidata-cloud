@@ -1,6 +1,8 @@
 # VisiData Cloud
 
-Fully-functional [VisiData](https://visidata.org) sessions in your browser.
+Playing around with the idea of fully-functional
+[VisiData](https://visidata.org) sessions in your browser.  Don't take the name
+too seriously.  :P
 
 * Access from any device
 * Sessions persist until you quit VisiData
