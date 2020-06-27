@@ -4,7 +4,7 @@ ARG RELEASE=develop
 
 RUN apk add --no-cache \
         bash \
-        man \
+        mandoc \
         less
 
 RUN pip install --no-cache-dir \
